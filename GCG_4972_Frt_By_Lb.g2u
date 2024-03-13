@@ -1,0 +1,298 @@
+Program.Sub.ScreenSU.Start
+Gui.Form..Create
+Gui.Form..Caption("Vendor Freight Rates per Pound")
+Gui.Form..Size(11250,7410)
+Gui.Form..MinX(0)
+Gui.Form..MinY(0)
+Gui.Form..Position(0,0)
+Gui.Form..BackColor(-2147483633)
+Gui.Form..MaxButton(False)
+Gui.Form..MousePointer(0)
+Gui.Form..Sizeable(False)
+Gui.Form..Event(UnLoad,Form_UnLoad)
+Gui.Form.GGC_Vend.Create(GsGridControl)
+Gui.Form.GGC_Vend.Size(10800,4980)
+Gui.Form.GGC_Vend.Position(105,795)
+Gui.Form.cmdSave.Create(Button)
+Gui.Form.cmdSave.Size(855,375)
+Gui.Form.cmdSave.Position(255,6030)
+Gui.Form.cmdSave.Caption("Save")
+Gui.Form.cmdSave.Event(Click,cmdSave_Click)
+Gui.Form.cmdCancel.Create(Button)
+Gui.Form.cmdCancel.Size(885,375)
+Gui.Form.cmdCancel.Position(1410,6045)
+Gui.Form.cmdCancel.Caption("Cancel")
+Gui.Form.cmdCancel.Event(Click,cmdCancel_Click)
+Gui.Form.txtRate.Create(TextBox,"",True,1215,300,0,600,405,True,0,"Arial",8,-2147483643,1)
+Gui.Form.txtRate.Mask("$#.00")
+Gui.Form.lbl1.Create(Label,"Rate Per Lb",True,1350,255,0,615,150,True,0,"Arial",8,-2147483633,0)
+Gui.Form.cmdApply.Create(Button)
+Gui.Form.cmdApply.Size(1920,375)
+Gui.Form.cmdApply.Position(1950,345)
+Gui.Form.cmdApply.Caption("Apply to Selected")
+Gui.Form.cmdApply.Event(Click,cmdApply_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+v.Local.sError.Declare
+v.Local.bHook.Declare
+
+'000004 vendor number
+'000002 po number
+'000008 freight amount to be split up
+'AUX001 bdf loaded from receipts
+'777777 - cancel the post
+
+f.Intrinsic.Control.If(v.caller.Hook,=,15041)
+
+	f.Intrinsic.Control.CallSub(check_vendor)
+f.Intrinsic.Control.Else
+	f.Intrinsic.Control.CallSub(load_data)
+f.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.catching.Start
+'F.Intrinsic.Control.Try
+'v.Local.sError.Declare
+
+
+'F.Intrinsic.Control.ExitSub
+
+'f.Intrinsic.Control.catch
+'f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+'f.Intrinsic.Control.EndTry
+
+
+'delete all above this line AND uncomment below
+v.Local.sError.declare(string)
+F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_4986_BomRouter.g2u",V.Ambient.NewLine,v.Args.sub,V.Args.errorno,V.args.errordesc,V.Local.sError)
+f.Intrinsic.UI.Msgbox(v.Local.sError)
+F.Intrinsic.Control.CallSub(FORM_UNLOAD)
+Program.Sub.catching.End
+
+Program.Sub.chkAll_Click.Start
+F.Intrinsic.Control.Try
+v.Local.sError.Declare
+
+
+F.Intrinsic.Control.ExitSub
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.chkAll_Click.End
+
+Program.Sub.cmdSave_Click.Start
+F.Intrinsic.Control.Try
+v.Local.sError.Declare
+
+F.ODBC.Connection!COREDB.opencompanyconnection
+F.Data.DataTable.Create("RATES",TRUE)
+F.Data.DataTable.AddColumn("RATES","VENDOR","STRING")
+F.Data.DataTable.AddColumn("RATES","RATE","FLOAT")
+
+f.Data.DataTable.SetPK("RATES","VENDOR")
+
+F.Data.DataTable.Merge("VEND","RATES",True,4)
+
+f.Data.Dataview.Create("RATES","TEMP",22,"VENDOR <> '' or VENDOR is NOT NULL","")
+
+f.Data.DataView.ToDataTable("RATES","TEMP","Save")
+
+f.Data.DataTable.SaveToDB("Save","COREDB","GCG_4972_FRT_BY_LB","VENDOR",256,"VENDOR@!@VENDOR*!*RATE@!@RATE")
+
+f.Data.DataView.Close("RATES","TEMP")
+f.Data.DataTable.Close("Save")
+
+F.ODBC.Connection!COREDB.Close
+
+F.Intrinsic.Control.CallSub(form_unload)
+
+F.Intrinsic.Control.ExitSub
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.cmdSave_Click.End
+
+Program.Sub.cmdCancel_Click.Start
+F.Intrinsic.Control.End
+Program.Sub.cmdCancel_Click.End
+
+Program.Sub.Form_UnLoad.Start
+F.Intrinsic.Control.End
+Program.Sub.Form_UnLoad.End
+
+Program.Sub.load_data.Start
+F.Intrinsic.Control.Try
+v.Local.sError.Declare
+
+v.Local.sSql.Declare
+
+f.ODBC.Connection!COREDB.opencompanyconnection
+
+v.Local.sSql.Set("SELECT DISTINCT V.VENDOR, V.NAME_VENDOR AS NAME, V.CITY, V.STATE, V.COUNTRY, R.RATE FROM V_VENDOR_MASTER V LEFT JOIN GCG_4972_FRT_BY_LB R ON V.VENDOR = R.VENDOR")
+
+F.Data.DataTable.CreateFromSQL("VEND","COREDB",V.Local.sSql,True)
+f.Data.DataTable.AddColumn("VEND","SELECT","BOOLEAN",False)
+f.Data.DataTable.SetPK("VEND","VENDOR")
+F.Data.DataView.Create("VEND","V_VEND")
+gui.Form.GGC_Vend.DataSource("VEND")
+GUI.Form.GGC_Vend.AddGridviewFromDataview("GV_VEND","VEND","V_VEND")
+
+GUI.Form.GGC_Vend.SetColumnProperty("GV_VEND","VENDOR","HeaderFontBold",True)
+GUI.Form.GGC_Vend.SetColumnProperty("GV_VEND","NAME","HeaderFontBold",True)
+GUI.Form.GGC_Vend.SetColumnProperty("GV_VEND","CITY","HeaderFontBold",True)
+GUI.Form.GGC_Vend.SetColumnProperty("GV_VEND","STATE","HeaderFontBold",True)
+GUI.Form.GGC_Vend.SetColumnProperty("GV_VEND","COUNTRY","HeaderFontBold",True)
+GUI.Form.GGC_Vend.SetColumnProperty("GV_VEND","RATE","HeaderFontBold",True)
+GUI.Form.GGC_Vend.SetColumnProperty("GV_VEND","SELECT","HeaderFontBold",True)
+
+GUI.Form.GGC_Vend.SetColumnProperty("GV_VEND","RATE","ReadOnly",False)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","SELECT","ReadOnly",False)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","RATE","AllowEdit",True)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","SELECT","AllowEdit",True)
+
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","VENDOR","MaxWidth",75)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","NAME","MaxWidth",150)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","CITY","MaxWidth",150)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","STATE","MaxWidth",50)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","COUNTRY","MaxWidth",100)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","RATE","MaxWidth",50)
+gui.Form.GGC_Vend.SetColumnProperty("GV_VEND","SELECT","MaxWidth",50)
+
+GUI.Form.GGC_Vend.SetGridviewProperty("GV_VEND","OptionsViewShowAutoFilterRow",True)
+gui.Form.GGC_Vend.SetGridviewProperty("GV_VEND","ShowGroupPanel",True)
+
+f.ODBC.Connection!COREDB.Close
+
+gui.Form..Show
+
+F.Intrinsic.Control.ExitSub
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.load_data.End
+
+Program.Sub.load_bdf.Start
+F.Intrinsic.Control.Try
+v.Local.sError.Declare
+v.Local.sTitles.Declare
+v.Local.iRow.Declare
+v.Local.sRow.Declare
+v.Local.iCount.Declare
+v.Local.sDataTypes.Declare
+v.Local.fRet.Declare
+v.Local.sSql.Declare
+v.Local.fTotal.Declare
+
+
+v.Local.sDataTypes.Set("STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING*!*STRING")
+
+
+
+'read in BDF and build a datatable from the titles
+f.Intrinsic.BDF.Load("AUX001","AUX001")
+'F.Intrinsic.BDF.ReadColumnTitle("AUX001",v.Local.sTitles)
+'f.Data.DataTable.CreateFromString("POLINE",V.Local.sTitles,v.Local.sTitles,v.Local.sDataTypes,"*!*",v.Ambient.NewLine,True)
+F.Data.DataTable.Create("POLINE",True)
+f.Data.DataTable.AddColumn("POLINE","PART","STRING")
+F.Data.DataTable.AddColumn("POLINE","QTY","NUMERIC")
+F.Data.DataTable.AddColumn("POLINE","UM","STRING")
+F.Data.DataTable.AddColumn("POLINE","LBS","NUMERIC")
+F.Data.DataTable.AddExpressionColumn("POLINE","T_WEIGHT","NUMERIC","QTY * LBS")
+F.Data.DataTable.AddColumn("POLINE","RATE","NUMERIC",V.Args.RATE,6)
+F.Data.DataTable.AddExpressionColumn("POLINE","F_COST","NUMERIC","T_WEIGHT * RATE")
+f.Data.DataTable.DeleteRow("POLINE")
+
+'Get row count and read rows in to the datatable
+f.Intrinsic.BDF.ReadRowCount("AUX001",V.Local.iRow)
+
+F.Intrinsic.Math.Sub(V.Local.iRow,1,V.Local.iRow)
+
+F.Intrinsic.Control.For(V.Local.iCount,0,V.Local.iRow,1)
+	F.Intrinsic.BDF.ReadRow("AUX001",v.Local.iCount,v.Local.sRow)
+	f.Intrinsic.String.Split(v.Local.sRow,"|~|",v.Local.sRow)
+	f.Data.DataTable.AddRow("POLINE","PART",V.Local.sRow(1),"QTY",V.Local.sRow(14).float)
+F.Intrinsic.Control.Next(V.Local.iCount)
+
+F.Intrinsic.Control.If(V.DataTable.POLINE.RowCount,>,0)
+	F.Intrinsic.Control.For(V.Local.iCount,0,V.DataTable.POLINE.RowCount--,1)
+		f.Intrinsic.String.Build("select distinct LBS from V_INVENTORY_MST2 where part = '{0}'",v.DataTable.POLINE(v.Local.iCount).PART!FIELDVALTRIM,v.Local.sSql)
+		f.ODBC.Connection!COREDB.executeandreturn(v.Local.sSql,v.Local.fRet)
+		f.Intrinsic.Control.If(v.Local.fRet,>,0)
+			f.Data.DataTable.SetValue("POLINE",v.Local.iCount,"LBS",v.Local.fRet)
+		F.Intrinsic.Control.Else
+			F.Intrinsic.String.Build("Part {0} has no weight on the part master record",V.DataTable.POLINE(V.Local.iCount).PART!FIELDVALTRIM,V.Local.sSql)
+			F.Intrinsic.UI.Msgbox(V.Local.sSql,"RECEIPT CANCELLED")
+			V.Passed.777777.Set(1)
+			F.Intrinsic.Control.CallSub(unload)
+		f.Intrinsic.Control.EndIf
+		f.Intrinsic.Math.Add(v.Local.fTotal,v.DataTable.POLINE(v.Local.iCount).F_COST!FIELDVALFLOAT,V.Local.fTotal)
+	F.Intrinsic.Control.Next(V.Local.iCount)
+	
+	V.Passed.000008.Set(V.Local.fTotal)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(unload)
+
+F.Intrinsic.Control.ExitSub
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.load_bdf.End
+
+Program.Sub.cmdApply_Click.Start
+F.Intrinsic.Control.Try
+v.Local.sError.Declare
+
+f.Data.DataView.Create("VEND","V_SELECT",22,"[SELECT] = TRUE","[SELECT] ASC")
+f.Data.DataView.SetValue("VEND","V_SELECT",-1,"RATE",V.Screen.Form!txtRate.TEXT)
+
+F.Intrinsic.Control.ExitSub
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.cmdApply_Click.End
+
+
+Program.Sub.check_vendor.Start
+F.Intrinsic.Control.Try
+v.Local.sError.Declare
+
+v.Local.sSql.Declare
+v.Local.fRet.Declare
+
+F.ODBC.Connection!COREDB.opencompanyconnection
+f.Intrinsic.String.Build("select rate from GCG_4972_FRT_BY_LB where VENDOR = '{0}'",V.Passed.000004,V.Local.sSql)
+f.ODBC.Connection!COREDB.executeandreturn(v.Local.sSql,v.Local.fRet)
+f.Intrinsic.Control.If(v.Local.fRet,>,0)
+	f.Intrinsic.Control.CallSub(load_bdf,"RATE",V.Local.fRet)
+f.Intrinsic.Control.Else
+	f.Intrinsic.Control.CallSub(unload)
+f.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.check_vendor.End
+
+Program.Sub.unload.Start
+f.ODBC.Connection!COREDB.Close
+f.Intrinsic.Control.End
+Program.Sub.unload.End
